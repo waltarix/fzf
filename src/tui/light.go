@@ -901,12 +901,21 @@ func wrapLine(input string, prefixLength int, max int, tabstop int) []wrappedLin
 	return lines
 }
 
-func (w *LightWindow) fill(str string, onMove func()) FillReturn {
-	allLines := strings.Split(str, "\n")
+func (w *LightWindow) fill(str string, onMove func(), raw_str string) FillReturn {
+	var allLines []string
+	if raw_str == "" {
+		allLines = strings.Split(str, "\n")
+	} else {
+		allLines = strings.Split(raw_str, "\n")
+	}
 	for i, line := range allLines {
 		lines := wrapLine(line, w.posx, w.width, w.tabstop)
 		for j, wl := range lines {
-			w.stderrInternal(wl.text, false)
+			if raw_str == "" {
+				w.stderrInternal(wl.text, false)
+			} else {
+				w.stderrInternal(str, false)
+			}
 			w.posx += wl.displayWidth
 
 			// Wrap line
@@ -937,10 +946,16 @@ func (w *LightWindow) setBg() {
 	}
 }
 
+func (w *LightWindow) RFill(text string, raw_text string) FillReturn {
+	w.Move(w.posy, w.posx)
+	w.setBg()
+	return w.fill(text, w.setBg, raw_text)
+}
+
 func (w *LightWindow) Fill(text string) FillReturn {
 	w.Move(w.posy, w.posx)
 	w.setBg()
-	return w.fill(text, w.setBg)
+	return w.fill(text, w.setBg, "")
 }
 
 func (w *LightWindow) CFill(fg Color, bg Color, attr Attr, text string) FillReturn {
@@ -953,9 +968,9 @@ func (w *LightWindow) CFill(fg Color, bg Color, attr Attr, text string) FillRetu
 	}
 	if w.csiColor(fg, bg, attr) {
 		defer w.csi("m")
-		return w.fill(text, func() { w.csiColor(fg, bg, attr) })
+		return w.fill(text, func() { w.csiColor(fg, bg, attr) }, "")
 	}
-	return w.fill(text, w.setBg)
+	return w.fill(text, w.setBg, "")
 }
 
 func (w *LightWindow) FinishFill() {
