@@ -1,5 +1,6 @@
 ---
 version: 2
+
 project_name: fzf
 
 before:
@@ -7,103 +8,36 @@ before:
     - go mod download
 
 builds:
-  - id: fzf
-    goos:
-      - darwin
-      - linux
-      - windows
-      - freebsd
-      - openbsd
-      - android
-    goarch:
-      - amd64
-      - arm
-      - arm64
-      - loong64
-      - ppc64le
-      - s390x
-    goarm:
-      - "5"
-      - "6"
-      - "7"
+  - binary: fzf
+    targets:
+      - linux_amd64_v2
+      - linux_amd64_v4
+      - darwin_amd64_v3
+      - darwin_arm64
     flags:
       - -trimpath
     ldflags:
-      - "-s -w -X main.version={{ .Version }} -X main.revision={{ .ShortCommit }}"
-    ignore:
-      - goos: freebsd
-        goarch: arm
-      - goos: openbsd
-        goarch: arm
-      - goos: freebsd
-        goarch: arm64
-      - goos: openbsd
-        goarch: arm64
-      - goos: android
-        goarch: amd64
-      - goos: android
-        goarch: arm
-
-# .goreleaser.yaml
-notarize:
-  macos:
-    - # Whether this configuration is enabled or not.
-      #
-      # Default: false.
-      # Templates: allowed.
-      enabled: "{{ not .IsSnapshot }}"
-
-      # Before notarizing, we need to sign the binary.
-      # This blocks defines the configuration for doing so.
-      sign:
-        # The .p12 certificate file path or its base64'd contents.
-        certificate: "{{.Env.MACOS_SIGN_P12}}"
-
-        # The password to be used to open the certificate.
-        password: "{{.Env.MACOS_SIGN_PASSWORD}}"
-
-      # Then, we notarize the binaries.
-      notarize:
-        # The issuer ID.
-        # Its the UUID you see when creating the App Store Connect key.
-        issuer_id: "{{.Env.MACOS_NOTARY_ISSUER_ID}}"
-
-        # Key ID.
-        # You can see it in the list of App Store Connect Keys.
-        # It will also be in the ApiKey filename.
-        key_id: "{{.Env.MACOS_NOTARY_KEY_ID}}"
-
-        # The .p8 key file path or its base64'd contents.
-        key: "{{.Env.MACOS_NOTARY_KEY}}"
-
-        # Whether to wait for the notarization to finish.
-        # Not recommended, as it could take a really long time.
-        wait: true
+      - -s
+      - -w
+      - -X main.version={{ .RawVersion }}
+      - -X main.revision={{ if .IsSnapshot }}{{ .ShortCommit }}{{ else }}custom{{ end }}
+    env:
+      - CGO_ENABLED=0
 
 archives:
-  - name_template: "{{ .ProjectName }}-{{ .Version }}-{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
-    builds:
-      - fzf
-    format: tar.gz
-    format_overrides:
-      - goos: windows
-        format: zip
+  - name_template: "{{ .ProjectName }}-{{ .RawVersion }}-{{ .Os }}_{{ .Arch }}{{ if .Amd64 }}_{{ .Amd64 }}{{ end }}"
+    formats:
+      - tar.xz
+    wrap_in_directory: true
     files:
-      - non-existent*
-
-release:
-  github:
-    owner: junegunn
-    name: fzf
-  prerelease: auto
-  name_template: '{{ .Version }}'
+      - bin/fzf-tmux
+      - plugin/fzf.vim
 
 snapshot:
-  name_template: "{{ .Version }}-devel"
+  version_template: "{{ .Version }}-devel"
+
+checksum:
+  disable: true
 
 changelog:
-  sort: asc
-  filters:
-    exclude:
-      - README
-      - test
+  disable: true
