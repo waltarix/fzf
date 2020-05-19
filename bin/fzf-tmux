@@ -55,9 +55,11 @@ while [[ $# -gt 0 ]]; do
       echo "fzf-tmux (with fzf $("$fzf" --version))"
       exit
       ;;
-    -p*|-w*|-h*|-x*|-y*|-d*|-u*|-r*|-l*)
+    -p*|-w*|-h*|-x*|-y*|-d*|-u*|-r*|-l*|-B*)
       if [[ "$arg" =~ ^-[pwhxy] ]]; then
         [[ "$opt" =~ "-E" ]] || opt="-E"
+      elif [[ "$arg" =~ ^-B ]]; then
+        opt="$opt -E -B"
       elif [[ "$arg" =~ ^.[lr] ]]; then
         opt="-h"
         if [[ "$arg" =~ ^.l ]]; then
@@ -178,20 +180,6 @@ trap 'cleanup 1' SIGUSR1
 trap 'cleanup' EXIT
 
 envs="export TERM=$TERM "
-if [[ "$opt" =~ "-E" ]]; then
-  tmux_version=$(tmux -V | sed 's/[^0-9.]//g')
-  if [[ $(bc -l <<< "$tmux_version > 3.2") = 1 ]]; then
-    FZF_DEFAULT_OPTS="--border $FZF_DEFAULT_OPTS"
-    opt="-B $opt"
-  elif [[ $tmux_version = 3.2 ]]; then
-    FZF_DEFAULT_OPTS="--margin 0,1 $FZF_DEFAULT_OPTS"
-  else
-    echo "fzf-tmux: tmux 3.2 or above is required for popup mode" >&2
-    exit 2
-  fi
-fi
-[[ -n "$FZF_DEFAULT_OPTS"    ]] && envs="$envs FZF_DEFAULT_OPTS=$(printf %q "$FZF_DEFAULT_OPTS")"
-[[ -n "$FZF_DEFAULT_COMMAND" ]] && envs="$envs FZF_DEFAULT_COMMAND=$(printf %q "$FZF_DEFAULT_COMMAND")"
 echo "$envs;" > "$argsf"
 
 # Build arguments to fzf
