@@ -6,25 +6,8 @@ MAKEFILE       := $(realpath $(lastword $(MAKEFILE_LIST)))
 ROOT_DIR       := $(shell dirname $(MAKEFILE))
 SOURCES        := $(wildcard *.go src/*.go src/*/*.go) $(MAKEFILE)
 
-ifdef FZF_VERSION
-VERSION        := $(FZF_VERSION)
-else
-VERSION        := $(shell git describe --abbrev=0 2> /dev/null)
-endif
-ifeq ($(VERSION),)
-$(error Not on git repository; cannot determine $$FZF_VERSION)
-endif
-VERSION_TRIM   := $(shell sed "s/-.*//" <<< $(VERSION))
-VERSION_REGEX  := $(subst .,\.,$(VERSION_TRIM))
-
-ifdef FZF_REVISION
-REVISION       := $(FZF_REVISION)
-else
-REVISION       := $(shell git log -n 1 --pretty=format:%h -- $(SOURCES) 2> /dev/null)
-endif
-ifeq ($(REVISION),)
-$(error Not on git repository; cannot determine $$FZF_REVISION)
-endif
+VERSION        := $(shell awk -F= '/version=/ {print $$2; exit}' install)
+REVISION       := $(shell git log -n 1 --pretty=format:%h -- $(SOURCES))
 BUILD_FLAGS    := -a -ldflags "-s -w -X main.version=$(VERSION) -X main.revision=$(REVISION)" -tags "$(TAGS)"
 
 BINARY64       := fzf-$(GOOS)_amd64
@@ -33,6 +16,8 @@ BINARYARM6     := fzf-$(GOOS)_arm6
 BINARYARM7     := fzf-$(GOOS)_arm7
 BINARYARM8     := fzf-$(GOOS)_arm8
 BINARYPPC64LE  := fzf-$(GOOS)_ppc64le
+
+ARCHIVE64      := fzf-$(VERSION)-$(GOOS)_amd64.tar.xz
 
 # https://en.wikipedia.org/wiki/Uname
 UNAME_M := $(shell uname -m)
@@ -72,41 +57,6 @@ install: bin/fzf
 build:
 	goreleaser --rm-dist --snapshot
 
-release:
-ifndef GITHUB_TOKEN
-	$(error GITHUB_TOKEN is not defined)
-endif
-
-	# Check if we are on master branch
-ifneq ($(shell git symbolic-ref --short HEAD),master)
-	$(error Not on master branch)
-endif
-
-	# Check if version numbers are properly updated
-	grep -q ^$(VERSION_REGEX)$$ CHANGELOG.md
-	grep -qF '"fzf $(VERSION_TRIM)"' man/man1/fzf.1
-	grep -qF '"fzf $(VERSION_TRIM)"' man/man1/fzf-tmux.1
-	grep -qF $(VERSION) install
-	grep -qF $(VERSION) install.ps1
-
-	# Make release note out of CHANGELOG.md
-	sed -n '/^$(VERSION_REGEX)$$/,/^[0-9]/p' CHANGELOG.md | tail -r | \
-		sed '1,/^ *$$/d' | tail -r | sed 1,2d | tee tmp/release-note
-
-	# Push to temp branch first so that install scripts always works on master branch
-	git checkout -B temp master
-	git push origin temp --follow-tags --force
-
-	# Make a GitHub release
-	goreleaser --rm-dist --release-notes tmp/release-note
-
-	# Push to master
-	git checkout master
-	git push origin master
-
-	# Delete temp branch
-	git push origin --delete temp
-
 clean:
 	$(RM) -r dist target
 
@@ -144,4 +94,7 @@ update:
 	$(GO) get -u
 	$(GO) mod tidy
 
-.PHONY: all build release test install clean docker docker-test update
+release-gh: bin/fzf
+	tar -Jcvf $(ARCHIVE64) bin plugin
+
+.PHONY: all build test install clean docker docker-test update release-gh
