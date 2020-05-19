@@ -14,16 +14,23 @@ import (
 // RunesWidth returns runes width
 func RunesWidth(runes []rune, prefixWidth int, tabstop int, limit int) (int, int) {
 	width := 0
-	gr := uniseg.NewGraphemes(string(runes))
+	s := string(runes)
+	state := -1
+	var cluster string
 	idx := 0
-	for gr.Next() {
-		rs := gr.Runes()
-		var w int
+	for len(s) > 0 {
+		cluster, s, _, state = uniseg.FirstGraphemeClusterInString(s, state)
+		rs := []rune(cluster)
+		w := 0
 		if len(rs) == 1 && rs[0] == '\t' {
 			w = tabstop - (prefixWidth+width)%tabstop
 		} else {
-			s := string(rs)
-			w = runewidth.StringWidth(s) + strings.Count(s, "\n")
+			for _, r := range rs {
+				w += runewidth.RuneWidth(r)
+				if r == 0x0a {
+					w += 1
+				}
+			}
 		}
 		width += w
 		if width > limit {
@@ -38,10 +45,15 @@ func RunesWidth(runes []rune, prefixWidth int, tabstop int, limit int) (int, int
 func Truncate(input string, limit int) ([]rune, int) {
 	runes := []rune{}
 	width := 0
-	gr := uniseg.NewGraphemes(input)
-	for gr.Next() {
-		rs := gr.Runes()
-		w := runewidth.StringWidth(string(rs))
+	state := -1
+	var cluster string
+	for len(input) > 0 {
+		cluster, input, _, state = uniseg.FirstGraphemeClusterInString(input, state)
+		rs := []rune(cluster)
+		w := 0
+		for _, r := range rs {
+			w += runewidth.RuneWidth(r)
+		}
 		if width+w > limit {
 			return runes, width
 		}

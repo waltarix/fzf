@@ -929,24 +929,28 @@ func wrapLine(input string, prefixLength int, max int, tabstop int) []wrappedLin
 	lines := []wrappedLine{}
 	width := 0
 	line := ""
-	gr := uniseg.NewGraphemes(input)
-	for gr.Next() {
-		rs := gr.Runes()
-		str := string(rs)
-		var w int
+
+	state := -1
+	var cluster string
+	for len(input) > 0 {
+		cluster, input, _, state = uniseg.FirstGraphemeClusterInString(input, state)
+		rs := []rune(cluster)
+		w := 0
 		if len(rs) == 1 && rs[0] == '\t' {
 			w = tabstop - (prefixLength+width)%tabstop
-			str = repeat(' ', w)
+			cluster = repeat(' ', w)
 		} else {
-			w = runewidth.StringWidth(str)
+			for _, r := range rs {
+				w += runewidth.RuneWidth(r)
+			}
 		}
 		width += w
 
 		if prefixLength+width <= max {
-			line += str
+			line += cluster
 		} else {
 			lines = append(lines, wrappedLine{string(line), width - w})
-			line = str
+			line = cluster
 			prefixLength = 0
 			width = w
 		}
@@ -955,12 +959,21 @@ func wrapLine(input string, prefixLength int, max int, tabstop int) []wrappedLin
 	return lines
 }
 
-func (w *LightWindow) fill(str string, onMove func()) FillReturn {
-	allLines := strings.Split(str, "\n")
+func (w *LightWindow) fill(str string, onMove func(), raw_str string) FillReturn {
+	var allLines []string
+	if raw_str == "" {
+		allLines = strings.Split(str, "\n")
+	} else {
+		allLines = strings.Split(raw_str, "\n")
+	}
 	for i, line := range allLines {
 		lines := wrapLine(line, w.posx, w.width, w.tabstop)
 		for j, wl := range lines {
-			w.stderrInternal(wl.text, false)
+			if raw_str == "" {
+				w.stderrInternal(wl.text, false)
+			} else {
+				w.stderrInternal(str, false)
+			}
 			w.posx += wl.displayWidth
 
 			// Wrap line
@@ -991,10 +1004,16 @@ func (w *LightWindow) setBg() {
 	}
 }
 
+func (w *LightWindow) RFill(text string, raw_text string) FillReturn {
+	w.Move(w.posy, w.posx)
+	w.setBg()
+	return w.fill(text, w.setBg, raw_text)
+}
+
 func (w *LightWindow) Fill(text string) FillReturn {
 	w.Move(w.posy, w.posx)
 	w.setBg()
-	return w.fill(text, w.setBg)
+	return w.fill(text, w.setBg, "")
 }
 
 func (w *LightWindow) CFill(fg Color, bg Color, attr Attr, text string) FillReturn {
@@ -1007,9 +1026,9 @@ func (w *LightWindow) CFill(fg Color, bg Color, attr Attr, text string) FillRetu
 	}
 	if w.csiColor(fg, bg, attr) {
 		defer w.csi("m")
-		return w.fill(text, func() { w.csiColor(fg, bg, attr) })
+		return w.fill(text, func() { w.csiColor(fg, bg, attr) }, "")
 	}
-	return w.fill(text, w.setBg)
+	return w.fill(text, w.setBg, "")
 }
 
 func (w *LightWindow) FinishFill() {
