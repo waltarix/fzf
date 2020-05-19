@@ -110,6 +110,7 @@ type previewer struct {
 	following  resumableState
 	spinner    string
 	bar        []bool
+	useRFill   bool
 }
 
 type previewed struct {
@@ -635,7 +636,7 @@ func NewTerminal(opts *Options, eventBox *util.EventBox) *Terminal {
 		reqBox:             util.NewEventBox(),
 		initialPreviewOpts: opts.Preview,
 		previewOpts:        opts.Preview,
-		previewer:          previewer{0, []string{}, 0, len(opts.Preview.command) > 0, false, true, disabledState, "", []bool{}},
+		previewer:          previewer{0, []string{}, 0, len(opts.Preview.command) > 0, false, true, disabledState, "", []bool{}, false},
 		previewed:          previewed{0, 0, 0, false},
 		previewBox:         previewBox,
 		eventBox:           eventBox,
@@ -668,12 +669,9 @@ func NewTerminal(opts *Options, eventBox *util.EventBox) *Terminal {
 		}
 		t.separator, t.separatorLen = t.ansiLabelPrinter(bar, &tui.ColSeparator, true)
 	}
-	if t.unicode {
-		t.borderWidth = runewidth.RuneWidth('│')
-	}
 	if opts.Scrollbar == nil {
-		if t.unicode && t.borderWidth == 1 {
-			t.scrollbar = "│"
+		if t.unicode {
+			t.scrollbar = "🮉"
 		} else {
 			t.scrollbar = "|"
 		}
@@ -1794,24 +1792,28 @@ func (t *Terminal) renderPreviewText(height int, lines []string, lineNo int, unc
 				t.pwindow.Move(y, x)
 			}
 			var fillRet tui.FillReturn
-			prefixWidth := 0
-			_, _, ansi = extractColor(line, ansi, func(str string, ansi *ansiState) bool {
-				trimmed := []rune(str)
-				isTrimmed := false
-				if !t.previewOpts.wrap {
-					trimmed, isTrimmed = t.trimRight(trimmed, maxWidth-t.pwindow.X())
-				}
-				str, width := t.processTabs(trimmed, prefixWidth)
-				prefixWidth += width
-				if t.theme.Colored && ansi != nil && ansi.colored() {
-					lbg = ansi.lbg
-					fillRet = t.pwindow.CFill(ansi.fg, ansi.bg, ansi.attr, str)
-				} else {
-					fillRet = t.pwindow.CFill(tui.ColPreview.Fg(), tui.ColPreview.Bg(), tui.AttrRegular, str)
-				}
-				return !isTrimmed &&
-					(fillRet == tui.FillContinue || t.previewOpts.wrap && fillRet == tui.FillNextLine)
-			})
+			if t.previewer.useRFill {
+				fillRet = t.pwindow.RFill(line, stripAnsi(line))
+			} else {
+				prefixWidth := 0
+				_, _, ansi = extractColor(line, ansi, func(str string, ansi *ansiState) bool {
+					trimmed := []rune(str)
+					isTrimmed := false
+					if !t.previewOpts.wrap {
+						trimmed, isTrimmed = t.trimRight(trimmed, maxWidth-t.pwindow.X())
+					}
+					str, width := t.processTabs(trimmed, prefixWidth)
+					prefixWidth += width
+					if t.theme.Colored && ansi != nil && ansi.colored() {
+						lbg = ansi.lbg
+						fillRet = t.pwindow.CFill(ansi.fg, ansi.bg, ansi.attr, str)
+					} else {
+						fillRet = t.pwindow.CFill(tui.ColPreview.Fg(), tui.ColPreview.Bg(), tui.AttrRegular, str)
+					}
+					return !isTrimmed &&
+						(fillRet == tui.FillContinue || t.previewOpts.wrap && fillRet == tui.FillNextLine)
+				})
+			}
 			t.previewer.scrollable = t.previewer.scrollable || t.pwindow.Y() == height-1 && t.pwindow.X() == t.pwindow.Width()
 			if fillRet == tui.FillNextLine {
 				continue
@@ -1901,17 +1903,21 @@ func (t *Terminal) printPreviewDelayed() {
 func (t *Terminal) processTabs(runes []rune, prefixWidth int) (string, int) {
 	var strbuf strings.Builder
 	l := prefixWidth
-	gr := uniseg.NewGraphemes(string(runes))
-	for gr.Next() {
-		rs := gr.Runes()
-		str := string(rs)
-		var w int
+	s := string(runes)
+	state := -1
+	var cluster string
+	for len(s) > 0 {
+		cluster, s, _, state = uniseg.FirstGraphemeClusterInString(s, state)
+		rs := []rune(cluster)
+		w := 0
 		if len(rs) == 1 && rs[0] == '\t' {
 			w = t.tabstop - l%t.tabstop
 			strbuf.WriteString(strings.Repeat(" ", w))
 		} else {
-			w = runewidth.StringWidth(str)
-			strbuf.WriteString(str)
+			for _, r := range rs {
+				w += runewidth.RuneWidth(r)
+			}
+			strbuf.WriteString(cluster)
 		}
 		l += w
 	}
@@ -2683,7 +2689,13 @@ func (t *Terminal) Loop() {
 								t.previewer.offset = 0
 							}
 						}
-						t.previewer.lines = result.lines
+						if result.lines[0] == "__FZF_PREVIEW_RFILL__\n" {
+							t.previewer.lines = result.lines[1:]
+							t.previewer.useRFill = true
+						} else {
+							t.previewer.lines = result.lines
+							t.previewer.useRFill = false
+						}
 						t.previewer.spinner = result.spinner
 						if t.previewer.following.Enabled() {
 							t.previewer.offset = util.Max(t.previewer.offset, len(t.previewer.lines)-(t.pwindow.Height()-t.previewOpts.headerLines))
