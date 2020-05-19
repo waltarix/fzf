@@ -13,3 +13,5 @@ require (
 )
 
 go 1.13
+
+replace github.com/mattn/go-runewidth => github.com/waltarix/go-runewidth v0.0.8-custom-r1
