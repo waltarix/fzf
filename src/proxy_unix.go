@@ -10,7 +10,7 @@ import (
 )
 
 func sh() (string, error) {
-	return "sh", nil
+	return "bash", nil
 }
 
 func mkfifo(path string, mode uint32) (string, error) {

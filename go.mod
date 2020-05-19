@@ -17,4 +17,6 @@ require (
 	golang.org/x/text v0.14.0 // indirect
 )
 
-go 1.20
+go 1.22
+
+replace github.com/rivo/uniseg => github.com/waltarix/uniseg v0.4.7-custom
