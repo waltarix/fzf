@@ -1,0 +1,32 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '*.*.*-custom'
+      - '*.*.*-custom-r*'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macOS-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Setup Go
+      uses: actions/setup-go@v2
+
+    - name: Build
+      run: make release-gh REVISION=custom
+
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: '*.tar.xz'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

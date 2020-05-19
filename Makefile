@@ -133,4 +133,7 @@ update:
 	$(GO) get -u
 	$(GO) mod tidy
 
-.PHONY: all release release-all test install clean docker docker-test update
+release-gh: bin/fzf
+	tar -Jcvf $(RELEASE64).tar.xz bin plugin
+
+.PHONY: all release release-all test install clean docker docker-test update release-gh
