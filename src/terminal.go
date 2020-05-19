@@ -820,8 +820,8 @@ func (t *Terminal) printPrompt() {
 	t.prompt()
 
 	before, after := t.updatePromptOffset()
-	t.window.CPrint(tui.ColNormal, t.strong, string(before))
-	t.window.CPrint(tui.ColNormal, t.strong, string(after))
+	t.window.CPrint(tui.ColNormal, tui.AttrRegular, string(before))
+	t.window.CPrint(tui.ColNormal, tui.AttrRegular, string(after))
 }
 
 func (t *Terminal) printInfo() {
@@ -966,7 +966,7 @@ func (t *Terminal) printItem(result Result, line int, i int, current bool) {
 		} else {
 			t.window.CPrint(tui.ColCurrentSelected, t.strong, t.markerEmpty)
 		}
-		newLine.width = t.printHighlighted(result, t.strong, tui.ColCurrent, tui.ColCurrentMatch, true, true)
+		newLine.width = t.printHighlighted(result, tui.AttrRegular, tui.ColCurrent, tui.ColCurrentMatch, true, true)
 	} else {
 		t.window.CPrint(tui.ColCursor, t.strong, label)
 		if selected {
