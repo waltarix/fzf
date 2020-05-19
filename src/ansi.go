@@ -5,8 +5,21 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"regexp"
+	"sync"
+
 	"github.com/junegunn/fzf/src/tui"
 )
+
+var once sync.Once
+var ansiRegex *regexp.Regexp
+
+func stripAnsi(str string) string {
+	once.Do(func() {
+		ansiRegex = regexp.MustCompile("(?:\x1b[\\[()][0-9;]*[a-zA-Z@]|\x1b][0-9];[[:print:]]+(?:\x1b\\\\|\x07)|\x1b.|[\x0e\x0f]|.\x08)")
+	})
+	return ansiRegex.ReplaceAllLiteralString(str, "")
+}
 
 type ansiOffset struct {
 	offset [2]int32

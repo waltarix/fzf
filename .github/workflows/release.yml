@@ -1,0 +1,42 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '*.*.*-custom'
+      - '*.*.*-custom-r*'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            uname_m: x86_64
+          - os: macos-latest
+            uname_m: x86_64
+          - os: macos-latest
+            uname_m: arm64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Setup Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: '^1.16'
+
+    - name: Build
+      run: make release-gh REVISION=custom
+      env:
+        UNAME_M: ${{ matrix.uname_m }}
+
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: '*.tar.xz'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

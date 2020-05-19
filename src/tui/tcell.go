@@ -588,6 +588,10 @@ func (w *TcellWindow) Fill(str string) FillReturn {
 	return w.fillString(str, w.normal)
 }
 
+func (w *TcellWindow) RFill(str string, _ string) FillReturn {
+	return w.fillString(str, w.normal, 0)
+}
+
 func (w *TcellWindow) CFill(fg Color, bg Color, a Attr, str string) FillReturn {
 	if fg == colDefault {
 		fg = w.normal.Fg()
