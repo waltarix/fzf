@@ -6,121 +6,34 @@ before:
     - go mod download
 
 builds:
-  - id: fzf-macos
-    binary: fzf
-    goos:
-      - darwin
-    goarch:
-      - amd64
+  - binary: fzf
+    targets:
+      - linux_amd64_v4
+      - darwin_amd64_v3
+      - darwin_arm64
+    flags:
+      - -trimpath
     ldflags:
-      - "-s -w -X main.version={{ .Version }} -X main.revision={{ .ShortCommit }}"
-    hooks:
-      post: |
-        sh -c '
-        cat > /tmp/fzf-gon-amd64.hcl << EOF
-        source = ["./dist/fzf-macos_darwin_amd64_v1/fzf"]
-        bundle_id = "kr.junegunn.fzf"
-        apple_id {
-          username = "junegunn.c@gmail.com"
-          password = "@env:AC_PASSWORD"
-        }
-        sign {
-          application_identity = "Developer ID Application: Junegunn Choi (Y254DRW44Z)"
-        }
-        zip {
-          output_path = "./dist/fzf-{{ .Version }}-darwin_amd64.zip"
-        }
-        EOF
-        gon /tmp/fzf-gon-amd64.hcl
-        '
-
-  - id: fzf-macos-arm
-    binary: fzf
-    goos:
-      - darwin
-    goarch:
-      - arm64
-    ldflags:
-      - "-s -w -X main.version={{ .Version }} -X main.revision={{ .ShortCommit }}"
-    hooks:
-      post: |
-        sh -c '
-        cat > /tmp/fzf-gon-arm64.hcl << EOF
-        source = ["./dist/fzf-macos-arm_darwin_arm64/fzf"]
-        bundle_id = "kr.junegunn.fzf"
-        apple_id {
-          username = "junegunn.c@gmail.com"
-          password = "@env:AC_PASSWORD"
-        }
-        sign {
-          application_identity = "Developer ID Application: Junegunn Choi (Y254DRW44Z)"
-        }
-        zip {
-          output_path = "./dist/fzf-{{ .Version }}-darwin_arm64.zip"
-        }
-        EOF
-        gon /tmp/fzf-gon-arm64.hcl
-        '
-
-  - id: fzf
-    goos:
-      - linux
-      - windows
-      - freebsd
-      - openbsd
-    goarch:
-      - amd64
-      - arm
-      - arm64
-      - loong64
-      - ppc64le
-      - s390x
-    goarm:
-      - 5
-      - 6
-      - 7
-    ldflags:
-      - "-s -w -X main.version={{ .Version }} -X main.revision={{ .ShortCommit }}"
-    ignore:
-      - goos: freebsd
-        goarch: arm
-      - goos: openbsd
-        goarch: arm
-      - goos: freebsd
-        goarch: arm64
-      - goos: openbsd
-        goarch: arm64
+      - -s
+      - -w
+      - -X main.version={{ .RawVersion }}
+      - -X main.revision={{ if .IsSnapshot }}{{ .ShortCommit }}{{ else }}custom{{ end }}
+    env:
+      - CGO_ENABLED=0
 
 archives:
-  - name_template: "{{ .ProjectName }}-{{ .Version }}-{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
-    builds:
-      - fzf
-    format: tar.gz
-    format_overrides:
-      - goos: windows
-        format: zip
+  - name_template: "{{ .ProjectName }}-{{ .RawVersion }}-{{ .Os }}_{{ .Arch }}"
+    format: tar.xz
+    wrap_in_directory: true
     files:
-      - non-existent*
-
-checksum:
-  extra_files:
-    - glob: ./dist/fzf-*darwin*.zip
-
-release:
-  github:
-    owner: junegunn
-    name: fzf
-  prerelease: auto
-  name_template: '{{ .Tag }}'
-  extra_files:
-    - glob: ./dist/fzf-*darwin*.zip
+      - bin/fzf-tmux
+      - plugin/fzf.vim
 
 snapshot:
   name_template: "{{ .Tag }}-devel"
 
+checksum:
+  disable: true
+
 changelog:
-  sort: asc
-  filters:
-    exclude:
-      - README
-      - test
+  skip: true

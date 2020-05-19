@@ -11,6 +11,13 @@ import (
 	"github.com/rivo/uniseg"
 )
 
+func RuneWidth(r rune) int {
+	if r == '\n' || r == '\r' {
+		return 1
+	}
+	return runewidth.RuneWidth(r)
+}
+
 // StringWidth returns string width where each CR/LF character takes 1 column
 func StringWidth(s string) int {
 	return runewidth.StringWidth(s) + strings.Count(s, "\n") + strings.Count(s, "\r")
@@ -19,15 +26,20 @@ func StringWidth(s string) int {
 // RunesWidth returns runes width
 func RunesWidth(runes []rune, prefixWidth int, tabstop int, limit int) (int, int) {
 	width := 0
-	gr := uniseg.NewGraphemes(string(runes))
+	s := string(runes)
+	state := -1
+	var cluster string
 	idx := 0
-	for gr.Next() {
-		rs := gr.Runes()
-		var w int
+	for len(s) > 0 {
+		cluster, s, _, state = uniseg.FirstGraphemeClusterInString(s, state)
+		rs := []rune(cluster)
+		w := 0
 		if len(rs) == 1 && rs[0] == '\t' {
 			w = tabstop - (prefixWidth+width)%tabstop
 		} else {
-			w = StringWidth(string(rs))
+			for _, r := range rs {
+				w += RuneWidth(r)
+			}
 		}
 		width += w
 		if width > limit {
@@ -42,10 +54,15 @@ func RunesWidth(runes []rune, prefixWidth int, tabstop int, limit int) (int, int
 func Truncate(input string, limit int) ([]rune, int) {
 	runes := []rune{}
 	width := 0
-	gr := uniseg.NewGraphemes(input)
-	for gr.Next() {
-		rs := gr.Runes()
-		w := StringWidth(string(rs))
+	state := -1
+	var cluster string
+	for len(input) > 0 {
+		cluster, input, _, state = uniseg.FirstGraphemeClusterInString(input, state)
+		rs := []rune(cluster)
+		w := 0
+		for _, r := range rs {
+			w += runewidth.RuneWidth(r)
+		}
 		if width+w > limit {
 			return runes, width
 		}
