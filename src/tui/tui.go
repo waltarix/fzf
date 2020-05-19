@@ -441,6 +441,7 @@ type Window interface {
 	Print(text string)
 	CPrint(color ColorPair, text string)
 	Fill(text string) FillReturn
+	RFill(text string, raw_text string) FillReturn
 	CFill(fg Color, bg Color, attr Attr, text string) FillReturn
 	Erase()
 }
@@ -693,7 +694,7 @@ func initPalette(theme *ColorTheme) {
 	ColMatch = pair(theme.Match, theme.Bg)
 	ColCursor = pair(theme.Cursor, theme.Gutter)
 	ColCursorEmpty = pair(blank, theme.Gutter)
-	ColSelected = pair(theme.Selected, theme.Gutter)
+	ColSelected = pair(theme.Selected, theme.Bg)
 	ColCurrent = pair(theme.Current, theme.DarkBg)
 	ColCurrentMatch = pair(theme.CurrentMatch, theme.DarkBg)
 	ColCurrentCursor = pair(theme.Cursor, theme.DarkBg)
