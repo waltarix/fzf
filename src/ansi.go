@@ -112,6 +112,10 @@ func findAnsiStart(str string) int {
 	return idx
 }
 
+func stripAnsi(str string) string {
+	return ansiRegex.ReplaceAllLiteralString(str, "")
+}
+
 func extractColor(str string, state *ansiState, proc func(string, *ansiState) bool) (string, *[]ansiOffset, *ansiState) {
 	var offsets []ansiOffset
 	var output bytes.Buffer
