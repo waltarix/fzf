@@ -310,6 +310,7 @@ type Window interface {
 	Print(text string)
 	CPrint(color ColorPair, attr Attr, text string)
 	Fill(text string) FillReturn
+	RFill(text string, raw_text string) FillReturn
 	CFill(fg Color, bg Color, attr Attr, text string) FillReturn
 	Erase()
 }
