@@ -1248,6 +1248,7 @@ func (t *Terminal) renderPreviewText(unchanged bool) {
 	maxWidth := t.pwindow.Width()
 	lineNo := -t.previewer.offset
 	height := t.pwindow.Height()
+	useRFill := false
 	if unchanged {
 		t.pwindow.MoveAndClear(0, 0)
 	} else {
@@ -1261,22 +1262,31 @@ func (t *Terminal) renderPreviewText(unchanged bool) {
 			t.previewed.filled = true
 			break
 		} else if lineNo >= 0 {
+			if lineNo == 0 && line == "__FZF_PREVIEW_RFILL__" {
+				useRFill = true
+				lineNo--
+				continue
+			}
 			var fillRet tui.FillReturn
-			prefixWidth := 0
-			_, _, ansi = extractColor(line, ansi, func(str string, ansi *ansiState) bool {
-				trimmed := []rune(str)
-				if !t.preview.wrap {
-					trimmed, _ = t.trimRight(trimmed, maxWidth-t.pwindow.X())
-				}
-				str, width := t.processTabs(trimmed, prefixWidth)
-				prefixWidth += width
-				if t.theme.Colored && ansi != nil && ansi.colored() {
-					fillRet = t.pwindow.CFill(ansi.fg, ansi.bg, ansi.attr, str)
-				} else {
-					fillRet = t.pwindow.CFill(tui.ColPreview.Fg(), tui.ColPreview.Bg(), tui.AttrRegular, str)
-				}
-				return fillRet == tui.FillContinue
-			})
+			if useRFill {
+				fillRet = t.pwindow.RFill(line, stripAnsi(line))
+			} else {
+				prefixWidth := 0
+				_, _, ansi = extractColor(line, ansi, func(str string, ansi *ansiState) bool {
+					trimmed := []rune(str)
+					if !t.preview.wrap {
+						trimmed, _ = t.trimRight(trimmed, maxWidth-t.pwindow.X())
+					}
+					str, width := t.processTabs(trimmed, prefixWidth)
+					prefixWidth += width
+					if t.theme.Colored && ansi != nil && ansi.colored() {
+						fillRet = t.pwindow.CFill(ansi.fg, ansi.bg, ansi.attr, str)
+					} else {
+						fillRet = t.pwindow.CFill(tui.ColPreview.Fg(), tui.ColPreview.Bg(), tui.AttrRegular, str)
+					}
+					return fillRet == tui.FillContinue
+				})
+			}
 			t.previewer.scrollable = t.previewer.scrollable || t.pwindow.Y() == height-1 && t.pwindow.X() == t.pwindow.Width()
 			if fillRet == tui.FillNextLine {
 				continue
