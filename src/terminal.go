@@ -1088,6 +1088,7 @@ func (t *Terminal) printPreview() {
 	reader := bufio.NewReader(strings.NewReader(t.previewer.text))
 	lineNo := -t.previewer.offset
 	height := t.pwindow.Height()
+	useRFill := false
 	t.previewer.more = t.previewer.offset > 0
 	var ansi *ansiState
 	for ; ; lineNo++ {
@@ -1099,22 +1100,32 @@ func (t *Terminal) printPreview() {
 		if lineNo >= height || t.pwindow.Y() == height-1 && t.pwindow.X() > 0 {
 			break
 		} else if lineNo >= 0 {
+			if lineNo == 0 && line == "__FZF_PREVIEW_RFILL__" {
+				useRFill = true
+				lineNo--
+				t.previewer.lines--
+				continue
+			}
 			var fillRet tui.FillReturn
-			prefixWidth := 0
-			_, _, ansi = extractColor(line, ansi, func(str string, ansi *ansiState) bool {
-				trimmed := []rune(str)
-				if !t.preview.wrap {
-					trimmed, _ = t.trimRight(trimmed, maxWidth-t.pwindow.X())
-				}
-				str, width := t.processTabs(trimmed, prefixWidth)
-				prefixWidth += width
-				if t.theme != nil && ansi != nil && ansi.colored() {
-					fillRet = t.pwindow.CFill(ansi.fg, ansi.bg, ansi.attr, str)
-				} else {
-					fillRet = t.pwindow.CFill(tui.ColPreview.Fg(), tui.ColPreview.Bg(), tui.AttrRegular, str)
-				}
-				return fillRet == tui.FillContinue
-			})
+			if useRFill {
+				fillRet = t.pwindow.RFill(line, stripAnsi(line))
+			} else {
+				prefixWidth := 0
+				_, _, ansi = extractColor(line, ansi, func(str string, ansi *ansiState) bool {
+					trimmed := []rune(str)
+					if !t.preview.wrap {
+						trimmed, _ = t.trimRight(trimmed, maxWidth-t.pwindow.X())
+					}
+					str, width := t.processTabs(trimmed, prefixWidth)
+					prefixWidth += width
+					if t.theme != nil && ansi != nil && ansi.colored() {
+						fillRet = t.pwindow.CFill(ansi.fg, ansi.bg, ansi.attr, str)
+					} else {
+						fillRet = t.pwindow.CFill(tui.ColPreview.Fg(), tui.ColPreview.Bg(), tui.AttrRegular, str)
+					}
+					return fillRet == tui.FillContinue
+				})
+			}
 			t.previewer.more = t.previewer.more || t.pwindow.Y() == height-1 && t.pwindow.X() == t.pwindow.Width()
 			if fillRet == tui.FillNextLine {
 				continue
