@@ -46,7 +46,7 @@ endif
 all: target/$(BINARY)
 
 test: $(SOURCES)
-	SHELL=/bin/sh GOOS= $(GO) test -v -tags "$(TAGS)" \
+	SHELL=/bin/sh GOOS= CGO_ENABLED=0 $(GO) test -v -tags "$(TAGS)" \
 				github.com/junegunn/fzf/src \
 				github.com/junegunn/fzf/src/algo \
 				github.com/junegunn/fzf/src/tui \
