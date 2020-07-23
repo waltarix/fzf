@@ -52,6 +52,7 @@ type previewer struct {
 	scrollable bool
 	final      bool
 	spinner    string
+	useRFill   bool
 }
 
 type previewed struct {
@@ -493,7 +494,7 @@ func NewTerminal(opts *Options, eventBox *util.EventBox) *Terminal {
 		selected:    make(map[int32]selectedItem),
 		reqBox:      util.NewEventBox(),
 		preview:     opts.Preview,
-		previewer:   previewer{0, []string{}, 0, previewBox != nil && !opts.Preview.hidden, false, true, ""},
+		previewer:   previewer{0, []string{}, 0, previewBox != nil && !opts.Preview.hidden, false, true, "", false},
 		previewed:   previewed{0, 0, 0, false},
 		previewBox:  previewBox,
 		eventBox:    eventBox,
@@ -1283,21 +1284,25 @@ func (t *Terminal) renderPreviewText(unchanged bool) {
 			break
 		} else if lineNo >= 0 {
 			var fillRet tui.FillReturn
-			prefixWidth := 0
-			_, _, ansi = extractColor(line, ansi, func(str string, ansi *ansiState) bool {
-				trimmed := []rune(str)
-				if !t.preview.wrap {
-					trimmed, _ = t.trimRight(trimmed, maxWidth-t.pwindow.X())
-				}
-				str, width := t.processTabs(trimmed, prefixWidth)
-				prefixWidth += width
-				if t.theme.Colored && ansi != nil && ansi.colored() {
-					fillRet = t.pwindow.CFill(ansi.fg, ansi.bg, ansi.attr, str)
-				} else {
-					fillRet = t.pwindow.CFill(tui.ColPreview.Fg(), tui.ColPreview.Bg(), tui.AttrRegular, str)
-				}
-				return fillRet == tui.FillContinue
-			})
+			if t.previewer.useRFill {
+				fillRet = t.pwindow.RFill(line, stripAnsi(line))
+			} else {
+				prefixWidth := 0
+				_, _, ansi = extractColor(line, ansi, func(str string, ansi *ansiState) bool {
+					trimmed := []rune(str)
+					if !t.preview.wrap {
+						trimmed, _ = t.trimRight(trimmed, maxWidth-t.pwindow.X())
+					}
+					str, width := t.processTabs(trimmed, prefixWidth)
+					prefixWidth += width
+					if t.theme.Colored && ansi != nil && ansi.colored() {
+						fillRet = t.pwindow.CFill(ansi.fg, ansi.bg, ansi.attr, str)
+					} else {
+						fillRet = t.pwindow.CFill(tui.ColPreview.Fg(), tui.ColPreview.Bg(), tui.AttrRegular, str)
+					}
+					return fillRet == tui.FillContinue
+				})
+			}
 			t.previewer.scrollable = t.previewer.scrollable || t.pwindow.Y() == height-1 && t.pwindow.X() == t.pwindow.Width()
 			if fillRet == tui.FillNextLine {
 				continue
@@ -2056,7 +2061,12 @@ func (t *Terminal) Loop() {
 					case reqPreviewDisplay:
 						result := value.(previewResult)
 						t.previewer.version = result.version
-						t.previewer.lines = result.lines
+						if result.lines[0] == "__FZF_PREVIEW_RFILL__\n" {
+							t.previewer.lines = result.lines[1:]
+							t.previewer.useRFill = true
+						} else {
+							t.previewer.lines = result.lines
+						}
 						t.previewer.spinner = result.spinner
 						if result.offset >= 0 {
 							t.previewer.offset = util.Constrain(result.offset, 0, len(t.previewer.lines)-1)
