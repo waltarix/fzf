@@ -1322,7 +1322,7 @@ func NewTerminal(opts *Options, eventBox *util.EventBox, executor *util.Executor
 	}
 	if opts.Scrollbar == nil {
 		if t.unicode && t.borderWidth == 1 {
-			t.scrollbar = "│"
+			t.scrollbar = "🮉"
 		} else {
 			t.scrollbar = "|"
 		}
