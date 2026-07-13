@@ -11,10 +11,15 @@ require (
 )
 
 require (
+	github.com/clipperhouse/uax29/v2 v2.2.0 // indirect
 	github.com/gdamore/encoding v1.0.1 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	golang.org/x/text v0.28.0 // indirect
 )
 
-go 1.23.0
+go 1.26
+
+replace github.com/mattn/go-runewidth => github.com/waltarix/go-runewidth v0.0.24-custom
+
+replace github.com/rivo/uniseg => github.com/waltarix/uniseg v0.4.7-custom-r2
